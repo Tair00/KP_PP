@@ -19,6 +19,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.squareup.picasso.Picasso;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
 import ru.mvlikhachev.mytablepr.Activity.ShowDetailActivity;
 import ru.mvlikhachev.mytablepr.Domain.RestoranDomain;
 import ru.mvlikhachev.mytablepr.R;
@@ -54,6 +57,15 @@ import retrofit2.Response;
 
     @Override
     public void onBindViewHolder(@NonNull RestoranViewHolder holder, int position) {
+        ArrayList<RestoranDomain> sortedProducts = new ArrayList<>(products);
+        Collections.sort(sortedProducts, new Comparator<RestoranDomain>() {
+            @Override
+            public int compare(RestoranDomain o1, RestoranDomain o2) {
+                // Сравниваем по убыванию рейтинга
+                return Double.compare(o2.getStar(), o1.getStar());
+            }
+        });
+
         RestoranDomain product = products.get(position);
 
 

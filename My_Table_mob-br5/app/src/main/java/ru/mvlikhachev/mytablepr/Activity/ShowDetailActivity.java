@@ -46,30 +46,34 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_detail);
-
         initView();
         getBundle();
         CartActivity cartActivity = new CartActivity();
         managementCart = ManagementCart.getInstance(this, cartActivity);
         setupButtonListeners();
-
         token = getIntent().getStringExtra("access_token");
     }
 
+
     private void getBundle() {
         object = (RestoranDomain) getIntent().getSerializableExtra("object");
-        if (object != null) {
-            titleTxt.setText(object.getName());
-            feeTxt.setText(String.valueOf(object.getPrice()));
-            description.setText(object.getDescription());
-            starTxt.setText(String.valueOf(object.getStar()));
-
-            Picasso.get().load(object.getPicture()).into(restoranPic);
+        int restaurantId = getIntent().getIntExtra("restorantId", 0);
+        if (object == null && restaurantId != 0) {
+            fetchRestaurantDetails(restaurantId);
         } else {
-
+            // Используем информацию из объекта RestoranDomain, если она уже доступна
+            if (object != null) {
+                titleTxt.setText(object.getName());
+                feeTxt.setText(String.valueOf(object.getPrice()));
+                description.setText(object.getDescription());
+                starTxt.setText(String.valueOf(object.getStar()));
+                Picasso.get().load(object.getPicture()).into(restoranPic);
+            }
         }
     }
 
+    private void fetchRestaurantDetails(int restaurantId) {
+    }
 
     private void setupButtonListeners() {
         addToCartBtn.setOnClickListener(new View.OnClickListener() {
@@ -86,10 +90,9 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                 String  token = getIntent().getStringExtra("access_token");
                 intent1.putExtra("email", email);
                 intent1.putExtra("access_token",token);
-                System.out.println("+++++++++++++++++2" + token);
                 intent1.putExtra("restorantId", restaurantId);
                 intent1.putExtra("feeTxt", title);
-                intent1.putExtra("restoranPic", object.getPicture()); // Pass the restoranPic value
+                intent1.putExtra("restoranPic", object.getPicture());
                 startActivity(intent1);
             }
         });
@@ -103,9 +106,13 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
         heart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                managementCart.addItem(object);
+                sendFavoriteToServer();
             }
         });
+
+
+
+
 
         plusBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -126,6 +133,87 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
         });
     }
 
+    private void sendFavoriteToServer() {
+        RequestQueue queue = Volley.newRequestQueue(this);
+        String email = getIntent().getStringExtra("email");
+        String userUrl = "https://losermaru.pythonanywhere.com/user/" + email;
+        StringRequest userRequest = new StringRequest(Request.Method.GET, userUrl,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            JSONObject userJson = new JSONObject(response);
+                            int userId = userJson.getInt("id");
+                            int restaurantId = getIntent().getIntExtra("restorantId", 0);
+
+                            String favoriteUrl = "http://losermaru.pythonanywhere.com/favorite";
+
+                            JSONObject jsonBody = new JSONObject();
+                            jsonBody.put("user_id", userId);
+                            jsonBody.put("restaurant_id", restaurantId);
+
+                            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, favoriteUrl, jsonBody,
+                                    new Response.Listener<JSONObject>() {
+                                        @Override
+                                        public void onResponse(JSONObject response) {
+                                            Toast.makeText(ShowDetailActivity.this, "Добавлено в избранное", Toast.LENGTH_SHORT).show();
+                                        }
+                                    },
+                                    new Response.ErrorListener() {
+                                        @Override
+                                        public void onErrorResponse(VolleyError error) {
+                                            String errorMessage = "Error: " + error.getMessage();
+                                            Toast.makeText(ShowDetailActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                                            if (error.networkResponse != null) {
+                                                int statusCode = error.networkResponse.statusCode;
+                                                String responseData = new String(error.networkResponse.data);
+                                                Log.e("ErrorResponse", "Status Code: " + statusCode);
+                                                Log.e("ErrorResponse", "Response Data: " + responseData);
+                                            }
+                                        }
+                                    }) {
+                                @Override
+                                public Map<String, String> getHeaders() throws AuthFailureError {
+                                    Map<String, String> headers = new HashMap<>();
+
+                                    String token = getIntent().getStringExtra("access_token");
+                                    headers.put("Authorization", "Bearer " + token);
+                                    return headers;
+                                }
+                            };
+
+                            queue.add(request);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(ShowDetailActivity.this, "Error parsing user response", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        String errorMessage = "Error: " + error.getMessage();
+                        Toast.makeText(ShowDetailActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                        if (error.networkResponse != null) {
+                            int statusCode = error.networkResponse.statusCode;
+                            String responseData = new String(error.networkResponse.data);
+                            Log.e("ErrorResponse", "Status Code: " + statusCode);
+                            Log.e("ErrorResponse", "Response Data: " + responseData);
+                        }
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+
+                String token = getIntent().getStringExtra("access_token");
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        queue.add(userRequest);
+    }
     private void showRatingDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Оцените заведение");
@@ -145,7 +233,6 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
 
         builder.create().show();
     }
-
     private void updateOrderQuantity() {
         numberOrderTxt.setText(String.valueOf(numberOrder));
         feeTxt.setText(String.valueOf(numberOrder * object.getPrice()));
@@ -175,6 +262,7 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                                     new Response.Listener<JSONObject>() {
                                         @Override
                                         public void onResponse(JSONObject response) {
+                                            getBundle();
                                             Toast.makeText(ShowDetailActivity.this, "Rating sent successfully", Toast.LENGTH_SHORT).show();
                                         }
                                     },
@@ -233,13 +321,10 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
 
         queue.add(userRequest);
     }
-
-
     @Override
     public void onCartUpdated() {
         Toast.makeText(this, "Добавлено в избранное", Toast.LENGTH_SHORT).show();
     }
-
     private void initView() {
         star=findViewById(R.id.star);
         tableTxt = findViewById(R.id.tableTxt);

@@ -58,7 +58,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
     static ArrayList<TableDomain> tableList = new ArrayList<>();
     Float price;
     Integer restaurantId;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,7 +75,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
 
         executeGetRequest();
     }
-
     private void setTableRecycler(ArrayList<TableDomain> table) {
         RecyclerView.LayoutManager layoutManager = new GridLayoutManager(this, 2);
         tableRecycler = findViewById(R.id.table_recycler);
@@ -93,7 +91,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
         tableRecycler.smoothScrollToPosition(0);
         tableRecycler.setHasFixedSize(true);
     }
-
     public void showTimePickerDialog() {
         TimePickerFragment newFragment = new TimePickerFragment();
         newFragment.setOnTimeSetListener(new TimePickerFragment.OnTimeSetListener() {
@@ -104,7 +101,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
         });
         newFragment.show(getSupportFragmentManager(), "timePicker");
     }
-
     public void showDatePickerDialog() {
         DatePickerFragment newFragment = new DatePickerFragment();
         newFragment.setOnDateSetListener(new DatePickerFragment.OnDateSetListener() {
@@ -131,13 +127,13 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
                         Toast.makeText(BookingActivity2.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 }) {
+
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("Authorization", "Bearer " + token);
                 return headers;
             }
-
             @Override
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 int statusCode = response.statusCode;
@@ -149,7 +145,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
                 }
             }
         };
-
         queue.add(stringRequest);
     }
 
@@ -166,9 +161,7 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
                     tableList.add(new TableDomain(id, title, seat, restId));
                 }
             }
-
             tableAdapter.notifyDataSetChanged();
-
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(BookingActivity2.this, "Error parsing response", Toast.LENGTH_SHORT).show();
@@ -188,12 +181,9 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
 
     private void executePostRequest(String number, String name) {
         RequestQueue queue = Volley.newRequestQueue(this);
-        Intent intent = getIntent();
         String email = getIntent().getStringExtra("email");
         String restoranPic = getIntent().getStringExtra("restoranPic");
-
         String userUrl = "https://losermaru.pythonanywhere.com/user/" + email;
-
         StringRequest userRequest = new StringRequest(Request.Method.GET, userUrl,
                 new Response.Listener<String>() {
                     @Override
@@ -211,7 +201,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
                             jsonBody.put("user_id", userId);
                             jsonBody.put("status", "waiting");
                             jsonBody.put("picture", restoranPic);
-
                             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, "https://losermaru.pythonanywhere.com/reservation", jsonBody,
                                     new Response.Listener<JSONObject>() {
                                         @Override
@@ -273,23 +262,6 @@ public class BookingActivity2 extends AppCompatActivity implements UserNameFragm
 
         queue.add(userRequest);
     }
-
-    private String getSelectedDate() {
-        DatePickerFragment datePickerFragment = (DatePickerFragment) getSupportFragmentManager().findFragmentByTag("datePicker");
-        if (datePickerFragment != null) {
-            return datePickerFragment.getSelectedDate();
-        }
-        return "";
-    }
-
-    private String getSelectedTime() {
-        TimePickerFragment timePickerFragment = (TimePickerFragment) getSupportFragmentManager().findFragmentByTag("timePicker");
-        if (timePickerFragment != null) {
-            return timePickerFragment.getSelectedTime();
-        }
-        return "";
-    }
-
     private void updateDate(int year, int month, int dayOfMonth) {
         DatePickerFragment datePickerFragment = (DatePickerFragment) getSupportFragmentManager().findFragmentByTag("datePicker");
         if (datePickerFragment != null) {

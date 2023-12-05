@@ -10,6 +10,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -49,16 +51,15 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigation();
         fullOrderlist.clear();
         setProductRecycler(orderlist1);
-        ImageView moonImageView = findViewById(R.id.moon);
-//        moonImageView.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                toggleTheme();
-//            }
-//        });
-        // Получение токена из предыдущего экрана (например, LoginActivity)
+
+
         token = getIntent().getStringExtra("access_token");
         fetchCategoriesFromServer();
+        fetchRestaurantsFromServer();
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
         fetchRestaurantsFromServer();
     }
     private void setProductRecycler(ArrayList<RestoranDomain> restorans) {
@@ -191,8 +192,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void fetchCategoriesFromServer() {
-
-
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
         httpClient.addInterceptor(new Interceptor() {
             @Override
@@ -224,23 +223,18 @@ public class MainActivity extends AppCompatActivity {
                     List<CategoryDomain> categories = response.body();
                     if (categories != null) {
                         categoryList.clear();
-                        System.out.println("11111111111111111111111111111111111111111111111111111111");
+
                         categoryList.addAll(categories);
-                        System.out.println("22222222222222222222222222222222222222222222222222222222");
                         adapter.notifyDataSetChanged();
-                        System.out.println("33333333333333333333333333333333333333333333333333333333");
                     }
                 } else {
 
                     String errorMessage = "Ошибка при получении категорий: " + response.code();
 
-                    System.out.println("+-+-++++-+-++--+-+-++-+-                          Ошибка  "+errorMessage);
                 }
             }
-
             @Override
             public void onFailure(Call<List<CategoryDomain>> call, Throwable t) {
-                System.out.println("+-+-++++-+-++--+-+-++-+-                          Error");
             }
         });
     }
@@ -274,6 +268,15 @@ public class MainActivity extends AppCompatActivity {
                 if (response.isSuccessful()) {
                     List<RestoranDomain> restaurants = response.body();
                     if (restaurants != null) {
+                        Collections.sort(restaurants, new Comparator<RestoranDomain>() {
+                            @Override
+                            public int compare(RestoranDomain o1, RestoranDomain o2) {
+                                // Сравниваем по убыванию рейтинга
+                                return Double.compare(o2.getStar(), o1.getStar());
+                            }
+                        });
+
+                        // Устанавливаем данные в RecyclerView после сортировки
                         orderlist1.clear();
                         orderlist1.addAll(restaurants);
                         setProductRecycler(orderlist1);
@@ -283,6 +286,7 @@ public class MainActivity extends AppCompatActivity {
                     // Обработка ошибки
                 }
             }
+
             @Override
             public void onFailure(Call<List<RestoranDomain>> call, Throwable t) {
 

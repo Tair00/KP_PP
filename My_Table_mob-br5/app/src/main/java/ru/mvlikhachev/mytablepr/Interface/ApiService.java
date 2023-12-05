@@ -17,5 +17,7 @@ public interface ApiService {
     Call<List<RestoranDomain>> getRestaurants();
     @GET("/category")
     Call<List<CategoryDomain>> getCategories();
+    @GET("restaurant/{id}")
+    Call<RestoranDomain> getRestaurantById(@Path("id") int id);
 
 }
