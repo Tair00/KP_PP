@@ -3,10 +3,13 @@ package ru.mvlikhachev.mytablepr.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.app.AlertDialog;
@@ -24,6 +27,8 @@ import org.json.JSONObject;
 import java.util.HashMap;
 import java.util.Map;
 import com.squareup.picasso.Picasso;
+
+import me.zhanghai.android.materialratingbar.MaterialRatingBar;
 import ru.mvlikhachev.mytablepr.Domain.RestoranDomain;
 import ru.mvlikhachev.mytablepr.Helper.ManagementCart;
 import ru.mvlikhachev.mytablepr.Interface.CartListener;
@@ -109,11 +114,6 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                 sendFavoriteToServer();
             }
         });
-
-
-
-
-
         plusBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -215,24 +215,47 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
         queue.add(userRequest);
     }
     private void showRatingDialog() {
+        MaterialRatingBar ratingBar = new MaterialRatingBar(this);
+        ratingBar.setNumStars(5); // Установка количества звезд
+        ratingBar.setRating(0); // Установка начальной оценки
+        ratingBar.setStepSize(1); // Установка шага изменения оценки
+
+// Устанавливаем цвета
+        ratingBar.setProgressTintList(ColorStateList.valueOf(Color.parseColor("#FFFFCA42"))); // Заполненные звезды
+        ratingBar.setSecondaryProgressTintList(ColorStateList.valueOf(Color.parseColor("#FFFFCA42"))); // Пустые звезды
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        ratingBar.setLayoutParams(params);
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Оцените заведение");
+        builder.setView(ratingBar);
 
-        final String[] ratings = {"1", "2", "3", "4", "5"};
-        builder.setItems(ratings, new DialogInterface.OnClickListener() {
+        builder.setPositiveButton("Оценить", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                String selectedRating = ratings[which];
-                sendRatingToServer(selectedRating);
+                float selectedRating = ratingBar.getRating();
+                sendRatingToServer(String.valueOf(selectedRating));
 
-                Toast.makeText(ShowDetailActivity.this, "Оценка ресторана: " + selectedRating, Toast.LENGTH_SHORT).show();
+                Toast.makeText(ShowDetailActivity.this, "Оценка заведения: " + selectedRating, Toast.LENGTH_SHORT).show();
                 getBundle();
+                dialog.dismiss();
+            }
+        });
+
+        builder.setNegativeButton("Отмена", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
             }
         });
 
         builder.create().show();
     }
+
     private void updateOrderQuantity() {
         numberOrderTxt.setText(String.valueOf(numberOrder));
         feeTxt.setText(String.valueOf(numberOrder * object.getPrice()));
@@ -248,13 +271,13 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                     public void onResponse(String response) {
                         try {
                             JSONObject userJson = new JSONObject(response);
-                            int userId = userJson.getInt("id");
+                            int userId = userJson.optInt("id");
                             int restaurantId = getIntent().getIntExtra("restorantId", 0);
 
                             String ratingUrl = "https://losermaru.pythonanywhere.com/rating";
 
                             JSONObject jsonBody = new JSONObject();
-                            jsonBody.put("rating", Integer.parseInt(selectedRating));
+                            jsonBody.put("rating", (int) Float.parseFloat(selectedRating));;
                             jsonBody.put("user_id", userId);
                             jsonBody.put("restaurant_id", restaurantId);
 

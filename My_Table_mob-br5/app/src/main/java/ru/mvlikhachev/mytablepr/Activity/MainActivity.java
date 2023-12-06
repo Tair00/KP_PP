@@ -105,7 +105,12 @@ public class MainActivity extends AppCompatActivity {
         cartBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, CartActivity.class));
+                Intent intent = new Intent(MainActivity.this, CartActivity.class);
+                String  token = getIntent().getStringExtra("access_token");
+                String email = getIntent().getStringExtra("email");
+                intent.putExtra("email", email);
+                intent.putExtra("access_token", token);
+                startActivity(intent);
             }
         });
     }
