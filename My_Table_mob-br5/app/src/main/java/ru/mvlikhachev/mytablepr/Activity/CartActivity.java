@@ -50,7 +50,7 @@ import ru.mvlikhachev.mytablepr.R;
 public class CartActivity extends AppCompatActivity implements ManagementCart.CartListener {
 
     private RecyclerView recyclerViewList;
-    private CartListAdapter priceAdapter;
+    static CartListAdapter priceAdapter;
     private String token;
     private CartListAdapter cartListAdapter;
     private double tax;
@@ -161,31 +161,21 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
 
                     // Создаем объект RestoranDomain и устанавливаем в него favId
                     RestoranDomain restoranDomain = new RestoranDomain();
-                    restoranDomain.setFavId(favId); // Устанавливаем favId
-
                     System.out.println(" fav1                     " + favId);
                     restoranDomain.setFavId(favId); // Устанавливаем favId
 
                     // Добавляем объект RestoranDomain в orderlist
                     orderlist.add(restoranDomain);
-                    // Передаем favId в адаптер
-                    if (cartListAdapter != null) {
-                        cartListAdapter.setFavId(favId);
-                    }
                 } else {
                     System.out.println("userId does not match");
                 }
             }
-
             System.out.println("Restaurant IDs: " + restaurantIds);
-
-
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(CartActivity.this, "Error parsing response", Toast.LENGTH_SHORT).show();
         }
     }
-
 
 
 
@@ -305,23 +295,18 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
 
 
     @Override
-
     public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
         int position = viewHolder.getAdapterPosition();
         RestoranDomain deletedItem = orderlist.get(position);
         int favId = deletedItem.getFavId();
-
+//        System.out.println("1231233333" + deletedItem.);
+//        System.out.println("fav id   "+ favId);
         // Получаем favId удаляемого элемента из избранного
         executeDeleteRequest(favId);
 
         // Удаление элемента из списка и уведомление адаптера
         orderlist.remove(position);
-
-        // Передаем favId в адаптер
-        if (cartListAdapter != null) {
-            cartListAdapter.setFavId(favId);
-            cartListAdapter.notifyItemRemoved(position);
-        }
+        priceAdapter.notifyItemRemoved(position);
     }
 
 
@@ -331,7 +316,7 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
 
         RequestQueue queue = Volley.newRequestQueue(context);
         System.out.println(" fav3" + favId);
-        String url = "https://losermaru.pythonanywhere.com/favorite/" + 1; // Используем favId для удаления элемента из избранного
+        String url = "https://losermaru.pythonanywhere.com/favorite/" + favId; // Используем favId для удаления элемента из избранного
 
         StringRequest request = new StringRequest(Request.Method.DELETE, url,
                 new Response.Listener<String>() {

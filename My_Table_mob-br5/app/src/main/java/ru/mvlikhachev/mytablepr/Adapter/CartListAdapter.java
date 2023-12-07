@@ -46,18 +46,14 @@ public class CartListAdapter extends RecyclerView.Adapter<CartListViewHolder> {
     private ArrayList<RestoranDomain> products;
     private String email, token;
     private Integer restorantId;
-    private int favId;
+
     public CartListAdapter(Context context, String email, String token) {
         this.token = token;
         this.context = context;
         this.products = new ArrayList<>();
         this.email = email;
     }
-    public void setFavId(int favId) {
-        this.favId = favId;
-        System.out.println("111111111111" + favId);
-        notifyDataSetChanged(); // Обновите адаптер после передачи новых данных
-    }
+
     public void updateProducts(ArrayList<RestoranDomain> newProducts) {
         products.clear();
         products.addAll(newProducts);
@@ -127,13 +123,16 @@ public class CartListAdapter extends RecyclerView.Adapter<CartListViewHolder> {
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
-                RestoranDomain deletedItem = products.get(position);
-                executeDeleteRequest(deletedItem.getFavId()); // Используйте favId элемента, который нужно удалить
+                RestoranDomain deletedItem = products.get(position); // Получаем удаляемый элемент
+                int restaurantId = deletedItem.getId(); // Получаем ID удаляемого ресторана
 
+                // Выполняем DELETE запрос для удаления элемента по ID
+                executeDeleteRequest(restaurantId);
+
+                // Удаление элемента из списка и уведомление адаптера
                 products.remove(position);
                 notifyItemRemoved(position);
             }
-
         };
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(touchHelperCallback);
