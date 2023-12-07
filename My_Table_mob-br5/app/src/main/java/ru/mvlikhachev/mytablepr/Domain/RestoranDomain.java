@@ -19,7 +19,15 @@ public class RestoranDomain implements Serializable {
     private int table;
     private int cat_id;
     private String imageUrl;
+    private int favId; // Добавьте поле для favId
 
+    public int getFavId() {
+        return favId;
+    }
+
+    public void setFavId(int favId) {
+        this.favId = favId;
+    }
     public String getImageUrl() {
         return imageUrl;
     }
@@ -101,7 +109,9 @@ public class RestoranDomain implements Serializable {
         this.table = table;
         this.cat_id = cat_id;
     }
-
+    public RestoranDomain() {
+        // Инициализация объекта по умолчанию, если требуется
+    }
 
 
 }

@@ -2,6 +2,9 @@ package ru.mvlikhachev.mytablepr.Helper;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.ArrayList;
 
 import ru.mvlikhachev.mytablepr.Activity.CartActivity;
@@ -59,5 +62,7 @@ public class ManagementCart {
     // Внутренний интерфейс для обратного вызова
     public interface CartListener {
         void onCartUpdated();
+
+        void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction);
     }
 }

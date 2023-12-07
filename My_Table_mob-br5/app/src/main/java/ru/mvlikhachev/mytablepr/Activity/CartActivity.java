@@ -1,19 +1,15 @@
 package ru.mvlikhachev.mytablepr.Activity;
 
-import static ru.mvlikhachev.mytablepr.Activity.MainActivity.orderlist;
-
-import android.content.Intent;
+import android.content.Context;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.util.Log;
-import android.view.View;
 import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -24,6 +20,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
@@ -45,39 +42,80 @@ import retrofit2.Callback;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import ru.mvlikhachev.mytablepr.Adapter.CartListAdapter;
-import ru.mvlikhachev.mytablepr.Adapter.RestoranAdapter;
 import ru.mvlikhachev.mytablepr.Domain.RestoranDomain;
 import ru.mvlikhachev.mytablepr.Interface.ApiService;
-import ru.mvlikhachev.mytablepr.Interface.ChangeNumberItemsListener;
 import ru.mvlikhachev.mytablepr.Helper.ManagementCart;
 import ru.mvlikhachev.mytablepr.R;
 
 public class CartActivity extends AppCompatActivity implements ManagementCart.CartListener {
 
     private RecyclerView recyclerViewList;
-    static CartListAdapter priceAdapter;
+    private CartListAdapter priceAdapter;
     private String token;
     private CartListAdapter cartListAdapter;
     private double tax;
-    private ScrollView scrollView;
+    private NestedScrollView scrollView;
     private ConstraintLayout orderbtn, profileIcon;
     private ArrayList<RestoranDomain> orderlist = new ArrayList<>(); // Новый список для ресторанов
+    private List<Integer> restaurantIds = new ArrayList<>();
+
+    private int userIdFromFirstRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_cart);
         String email = getIntent().getStringExtra("email");
-        System.out.println("123123123123123123123123"+email);
+        executeGetRequest2(email);
+        System.out.println("123123123123123123123123" + email);
 //        managementCart = ManagementCart.getInstance(this, this);
         executeGetRequest();
         initView();
-//        initList();
         bottomNavigation();
         fetchRestaurantsFromServer();
     }
+
+    private void executeGetRequest2(String email) {
+        String token = getIntent().getStringExtra("access_token");
+        RequestQueue queue = Volley.newRequestQueue(this);
+        String url = "https://losermaru.pythonanywhere.com/user/" + email;
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        try {
+                            userIdFromFirstRequest = response.getInt("id"); // Сохраняем userId из первого запроса
+                            System.out.println("111111 " + userIdFromFirstRequest);
+                            executeGetRequest(); // Запускаем второй запрос после получения userId
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        // Обработка успешного ответа от сервера
+                    }
+
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        // Обработка ошибки запроса первого запроса
+                        handleErrorResponse(error);
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        queue.add(request);
+    }
+
+
     private void executeGetRequest() {
-        String token = getIntent().getStringExtra("access_token"); // Получение значения токена
+        String token = getIntent().getStringExtra("access_token");
         RequestQueue queue = Volley.newRequestQueue(this);
         String url = "https://losermaru.pythonanywhere.com/favorite";
 
@@ -86,21 +124,19 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
                     @Override
                     public void onResponse(JSONArray response) {
                         System.out.println("1232133123123123123123");
-                        // Обработка успешного ответа от сервера
-                        parseResponse(response);
+                        parseResponse(response, userIdFromFirstRequest); // Передаем userId из обоих запросов
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        // Обработка ошибки запроса
                         handleErrorResponse(error);
                     }
                 }) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
-                headers.put("Authorization", "Bearer " + token); // Добавление заголовка авторизации
+                headers.put("Authorization", "Bearer " + token);
                 return headers;
             }
         };
@@ -108,21 +144,50 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
         queue.add(request);
     }
 
-    private void parseResponse(JSONArray response) {
+    private void parseResponse(JSONArray response, int userId) {
         try {
-            for (int i = 0; i < response.length(); i++) {
+            int length = response.length();
+            for (int i = 0; i < length; i++) {
                 JSONObject item = response.getJSONObject(i);
-                int id = item.getInt("id");
-                int userId = item.getInt("user_id");
+                int favId = item.getInt("id");
+
+                int itemUserId = item.getInt("user_id");
                 int restaurantId = item.getInt("restaurant_id");
 
+                System.out.println(" fav                     " + favId);
+                if (itemUserId == userId) {
+                    System.out.println("userId matches");
+                    restaurantIds.add(restaurantId);
+
+                    // Создаем объект RestoranDomain и устанавливаем в него favId
+                    RestoranDomain restoranDomain = new RestoranDomain();
+                    restoranDomain.setFavId(favId); // Устанавливаем favId
+
+                    System.out.println(" fav1                     " + favId);
+                    restoranDomain.setFavId(favId); // Устанавливаем favId
+
+                    // Добавляем объект RestoranDomain в orderlist
+                    orderlist.add(restoranDomain);
+                    // Передаем favId в адаптер
+                    if (cartListAdapter != null) {
+                        cartListAdapter.setFavId(favId);
+                    }
+                } else {
+                    System.out.println("userId does not match");
+                }
             }
+
+            System.out.println("Restaurant IDs: " + restaurantIds);
+
+
         } catch (JSONException e) {
             e.printStackTrace();
-            // Обработка ошибки парсинга JSON
             Toast.makeText(CartActivity.this, "Error parsing response", Toast.LENGTH_SHORT).show();
         }
     }
+
+
+
 
     private void handleErrorResponse(VolleyError error) {
         if (error.networkResponse != null && error.networkResponse.data != null) {
@@ -136,35 +201,10 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
             Log.e("ErrorResponse", "Error: " + error.getMessage());
         }
     }
+
     protected void bottomNavigation() {
         // Добавьте свою логику для нижней навигации
     }
-
-//    private void initSwipeToDelete() {
-//        SwipeToDeleteCallback swipeToDeleteCallback = new SwipeToDeleteCallback(cartListAdapter);
-//        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(swipeToDeleteCallback);
-//        itemTouchHelper.attachToRecyclerView(recyclerViewList);
-//    }
-
-//    protected void initList() {
-//        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-//        recyclerViewList.setLayoutManager(linearLayoutManager);
-//        cartListAdapter = new CartListAdapter((ArrayList<RestoranDomain>) managementCart.getListCart(), this, new CartListAdapter.ChangeNumberItemsListener() {
-//            @Override
-//            public void changed() {
-//                calculateCart();
-//            }
-//        });
-//
-//        recyclerViewList.setAdapter(cartListAdapter);
-//        initSwipeToDelete();
-//
-//        if (managementCart.getListCart().isEmpty()) {
-//            scrollView.setVisibility(View.GONE);
-//        } else {
-//            scrollView.setVisibility(View.VISIBLE);
-//        }
-//    }
 
     protected void calculateCart() {
         // Выполните расчет общей суммы корзины и обновите соответствующие представления
@@ -213,7 +253,15 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
                 if (response.isSuccessful()) {
                     List<RestoranDomain> restaurants = response.body();
                     if (restaurants != null) {
-                        Collections.sort(restaurants, new Comparator<RestoranDomain>() {
+                        // Фильтрация списка restaurants на основе сохраненных айди ресторанов
+                        List<RestoranDomain> filteredRestaurants = new ArrayList<>();
+                        for (RestoranDomain restaurant : restaurants) {
+                            if (restaurantIds.contains(restaurant.getId())) { // Проверяем наличие айди ресторана в списке restaurantIds
+                                filteredRestaurants.add(restaurant); // Добавляем только нужные рестораны
+                            }
+                        }
+
+                        Collections.sort(filteredRestaurants, new Comparator<RestoranDomain>() {
                             @Override
                             public int compare(RestoranDomain o1, RestoranDomain o2) {
                                 // Сравниваем по убыванию рейтинга
@@ -221,76 +269,26 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
                             }
                         });
 
-                        // Устанавливаем данные в RecyclerView после сортировки
+                        // Устанавливаем данные в RecyclerView после сортировки отфильтрованного списка
                         orderlist.clear();
-                        orderlist.addAll(restaurants);
+                        orderlist.addAll(filteredRestaurants);
                         setProductRecycler(orderlist);
                         priceAdapter.notifyDataSetChanged();
                     }
                 } else {
                     // Обработка ошибки
-                }
-            }
-            private void executePostRequest() {
-                String token = getIntent().getStringExtra("access_token");
-                RequestQueue queue = Volley.newRequestQueue(this);
-                String url = "https://losermaru.pythonanywhere.com/user_info"; // замените на ваш эндпоинт для получения информации о пользователе
-
-                JSONObject jsonBody = new JSONObject();
-                try {
-                    jsonBody.put("token", token); // передача токена для идентификации пользователя
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-
-                JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, jsonBody,
-                        new Response.Listener<JSONObject>() {
-                            @Override
-                            public void onResponse(JSONObject response) {
-                                // Обработка успешного ответа от сервера
-                                parseUserInfo(response);
-                            }
-                        },
-                        new Response.ErrorListener() {
-                            @Override
-                            public void onErrorResponse(VolleyError error) {
-                                // Обработка ошибки запроса
-                                handleErrorResponse(error);
-                            }
-                        });
-
-                queue.add(request);
-            }
-
-            private void parseUserInfo(JSONObject response) {
-                try {
-                    String userName = response.getString("name");
-                    String userEmail = response.getString("email");
-                    // Дальнейшая обработка полученных данных о пользователе
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    // Обработка ошибки парсинга JSON
-                    Toast.makeText(CartActivity.this, "Error parsing user info", Toast.LENGTH_SHORT).show();
+                    System.out.println("ПУПУПУПУПУПУПУПУП");
                 }
             }
 
-            private void handleErrorResponse(VolleyError error) {
-                if (error.networkResponse != null && error.networkResponse.data != null) {
-                    String errorResponse = new String(error.networkResponse.data);
-                    // Обработка текста ошибки
-                    Log.e("ErrorResponse", "Error: " + errorResponse);
-                    // Дополнительная логика для обработки текста ошибки
-                } else {
-                    // Обработка других видов ошибок (например, отсутствие сети и т. д.)
-                    Toast.makeText(CartActivity.this, "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e("ErrorResponse", "Error: " + error.getMessage());
-                }
+            @Override
+            public void onFailure(Call<List<RestoranDomain>> call, Throwable t) {
+
             }
 
             private void setProductRecycler(ArrayList<RestoranDomain> restorans) {
                 RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(CartActivity.this, RecyclerView.VERTICAL, false);
                 String email = getIntent().getStringExtra("email");
-                System.out.println("====================================" + token);
                 recyclerViewList = findViewById(R.id.view);
                 recyclerViewList.setLayoutManager(layoutManager);
                 priceAdapter = new CartListAdapter(CartActivity.this, email, token);
@@ -298,14 +296,66 @@ public class CartActivity extends AppCompatActivity implements ManagementCart.Ca
                 recyclerViewList.smoothScrollToPosition(100000);
                 recyclerViewList.setHasFixedSize(true);
                 priceAdapter.updateProducts(restorans);
-            }
 
-            @Override
-            public void onFailure(Call<List<RestoranDomain>> call, Throwable t) {
-
+                // Вызов метода setTouchHelper для настройки свайпа
+                priceAdapter.setTouchHelper(recyclerViewList);
             }
         });
     }
 
 
+    @Override
+
+    public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+        int position = viewHolder.getAdapterPosition();
+        RestoranDomain deletedItem = orderlist.get(position);
+        int favId = deletedItem.getFavId();
+
+        // Получаем favId удаляемого элемента из избранного
+        executeDeleteRequest(favId);
+
+        // Удаление элемента из списка и уведомление адаптера
+        orderlist.remove(position);
+
+        // Передаем favId в адаптер
+        if (cartListAdapter != null) {
+            cartListAdapter.setFavId(favId);
+            cartListAdapter.notifyItemRemoved(position);
+        }
+    }
+
+
+    private void executeDeleteRequest(int favId) {
+        String token = getIntent().getStringExtra("access_token");
+        Context context = this; // Укажите контекст активити
+
+        RequestQueue queue = Volley.newRequestQueue(context);
+        System.out.println(" fav3" + favId);
+        String url = "https://losermaru.pythonanywhere.com/favorite/" + 1; // Используем favId для удаления элемента из избранного
+
+        StringRequest request = new StringRequest(Request.Method.DELETE, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        System.out.println(" УСПЕХ");
+                        executeGetRequest();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        System.out.println("НЕ УСПЕХ: " + error.toString());
+                        error.printStackTrace();
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        queue.add(request);
+    }
 }

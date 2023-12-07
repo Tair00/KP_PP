@@ -14,7 +14,15 @@ import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.google.android.material.behavior.SwipeDismissBehavior;
 import com.squareup.picasso.Picasso;
@@ -22,6 +30,8 @@ import com.squareup.picasso.Picasso;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import ru.mvlikhachev.mytablepr.Activity.CartActivity;
 import ru.mvlikhachev.mytablepr.Activity.ShowDetailActivity;
@@ -30,19 +40,24 @@ import ru.mvlikhachev.mytablepr.Helper.ManagementCart;
 import ru.mvlikhachev.mytablepr.R;
 
 
-public class CartListAdapter extends RecyclerView.Adapter<CartListAdapter.CartListViewHolder> {
+public class CartListAdapter extends RecyclerView.Adapter<CartListViewHolder> {
     private Context context;
 
     private ArrayList<RestoranDomain> products;
-    private String email,token;
+    private String email, token;
     private Integer restorantId;
-    public CartListAdapter(Context context, String email,String token ) {
+    private int favId;
+    public CartListAdapter(Context context, String email, String token) {
         this.token = token;
         this.context = context;
         this.products = new ArrayList<>();
         this.email = email;
     }
-
+    public void setFavId(int favId) {
+        this.favId = favId;
+        System.out.println("111111111111" + favId);
+        notifyDataSetChanged(); // Обновите адаптер после передачи новых данных
+    }
     public void updateProducts(ArrayList<RestoranDomain> newProducts) {
         products.clear();
         products.addAll(newProducts);
@@ -84,9 +99,9 @@ public class CartListAdapter extends RecyclerView.Adapter<CartListAdapter.CartLi
                 restorantId = product.getId();
                 Intent intent = new Intent(holder.itemView.getContext(), ShowDetailActivity.class);
                 intent.putExtra("email", email);
-                intent.putExtra("access_token",token);
+                intent.putExtra("access_token", token);
                 intent.putExtra("object", product);
-                intent.putExtra("restorantId",restorantId);
+                intent.putExtra("restorantId", restorantId);
                 holder.itemView.getContext().startActivity(intent, options.toBundle());
             }
         });
@@ -100,19 +115,61 @@ public class CartListAdapter extends RecyclerView.Adapter<CartListAdapter.CartLi
         return products.size();
     }
 
-    public static class CartListViewHolder extends RecyclerView.ViewHolder {
-        ImageView productImage;
-        TextView productTitles, productPrice;
-        TextView grade;
+    public void setTouchHelper(RecyclerView recyclerView) {
+        ItemTouchHelper.SimpleCallback touchHelperCallback = new ItemTouchHelper.SimpleCallback(
+                0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT
+        ) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
 
-        public CartListViewHolder(@NonNull View itemView) {
-            super(itemView);
-            productImage = itemView.findViewById(R.id.pic);
-            productTitles = itemView.findViewById(R.id.title);
-            productPrice = itemView.findViewById(R.id.fee);
-            grade = itemView.findViewById(R.id.grade);
-        }
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                RestoranDomain deletedItem = products.get(position);
+                executeDeleteRequest(deletedItem.getFavId()); // Используйте favId элемента, который нужно удалить
+
+                products.remove(position);
+                notifyItemRemoved(position);
+            }
+
+        };
+
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(touchHelperCallback);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
+    }
+
+    private void executeDeleteRequest(int favId) {
+        String url = "https://losermaru.pythonanywhere.com/favorite/" + favId;
+
+        RequestQueue queue = Volley.newRequestQueue(context);
+
+        StringRequest stringRequest = new StringRequest(Request.Method.DELETE, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        System.out.println("УДАЛИЛ");
+                        // Обработка успешного ответа DELETE запроса
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        // Обработка ошибки DELETE запроса
+                        System.out.println(" НЕ УДАЛИЛ");
+                    }
+                }) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+
+        queue.add(stringRequest);
+
     }
 }
-
 

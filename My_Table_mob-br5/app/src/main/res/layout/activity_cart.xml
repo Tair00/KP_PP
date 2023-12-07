@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="@color/backColor"
     tools:context=".Activity.CartActivity" >
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -39,8 +39,8 @@
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/view"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>
