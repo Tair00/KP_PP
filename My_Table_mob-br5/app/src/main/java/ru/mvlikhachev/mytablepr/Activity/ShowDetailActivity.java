@@ -78,6 +78,7 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
     }
 
     private void fetchRestaurantDetails(int restaurantId) {
+
     }
 
     private void setupButtonListeners() {
@@ -132,7 +133,11 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
             }
         });
     }
-
+    @Override
+    protected void onResume() {
+        super.onResume();
+        getBundle();
+    }
     private void sendFavoriteToServer() {
         RequestQueue queue = Volley.newRequestQueue(this);
         String email = getIntent().getStringExtra("email");
@@ -162,14 +167,16 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                                     new Response.ErrorListener() {
                                         @Override
                                         public void onErrorResponse(VolleyError error) {
-                                            String errorMessage = "Error: " + error.getMessage();
-                                            Toast.makeText(ShowDetailActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
-                                            if (error.networkResponse != null) {
-                                                int statusCode = error.networkResponse.statusCode;
-                                                String responseData = new String(error.networkResponse.data);
-                                                Log.e("ErrorResponse", "Status Code: " + statusCode);
-                                                Log.e("ErrorResponse", "Response Data: " + responseData);
-                                            }
+                                            String errorMessage = "Ресторан уже добавлен  )";
+                                            Toast.makeText(ShowDetailActivity.this,errorMessage,Toast.LENGTH_SHORT).show();
+//                                            String errorMessage = "Error: " + error.getMessage();
+//                                            Toast.makeText(ShowDetailActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+//                                            if (error.networkResponse != null) {
+//                                                int statusCode = error.networkResponse.statusCode;
+//                                                String responseData = new String(error.networkResponse.data);
+//                                                Log.e("ErrorResponse", "Status Code: " + statusCode);
+//                                                Log.e("ErrorResponse", "Response Data: " + responseData);
+//                                            }
                                         }
                                     }) {
                                 @Override
@@ -185,8 +192,7 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                             queue.add(request);
                         } catch (JSONException e) {
                             e.printStackTrace();
-                            Toast.makeText(ShowDetailActivity.this, "Error parsing user response", Toast.LENGTH_SHORT).show();
-                        }
+                                   }
                     }
                 },
                 new Response.ErrorListener() {
@@ -241,7 +247,8 @@ public class ShowDetailActivity extends AppCompatActivity implements CartListene
                 sendRatingToServer(String.valueOf(selectedRating));
 
                 Toast.makeText(ShowDetailActivity.this, "Оценка заведения: " + selectedRating, Toast.LENGTH_SHORT).show();
-                getBundle();
+                ratingBar.setRating(selectedRating);
+                onResume();
                 dialog.dismiss();
             }
         });
